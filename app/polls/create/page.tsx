@@ -3,180 +3,250 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { createPoll, PollFormValues } from '../../../lib/actions';
 
-interface PollOption {
-  id: string;
-  text: string;
-}
+// Using the schema and types from the server action
 
 export default function CreatePollPage() {
   const router = useRouter();
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [options, setOptions] = useState<PollOption[]>([
-    { id: '1', text: '' },
-    { id: '2', text: '' },
-  ]);
-  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleOptionChange = (id: string, value: string) => {
-    setOptions(options.map(option => 
-      option.id === id ? { ...option, text: value } : option
-    ));
-  };
-
-  const addOption = () => {
-    setOptions([
-      ...options,
-      { id: `${options.length + 1}`, text: '' }
-    ]);
-  };
-
-  const removeOption = (id: string) => {
-    if (options.length <= 2) {
-      setError('A poll must have at least 2 options');
-      return;
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // @form-setup
+  const form = useForm<PollFormValues>({
+    resolver: zodResolver(z.object({
+      title: z.string()
+        .min(5, { message: 'Title must be at least 5 characters' })
+        .max(100, { message: 'Title must be less than 100 characters' })
+        .refine(val => val.trim().length > 0, { message: 'Title cannot be empty' }),
+      description: z.string()
+        .min(10, { message: 'Description must be at least 10 characters' })
+        .max(500, { message: 'Description must be less than 500 characters' })
+        .refine(val => val.trim().length > 0, { message: 'Description cannot be empty' }),
+      isPublic: z.boolean().default(true),
+      allowMultipleVotes: z.boolean().default(false),
+      options: z.array(
+        z.object({
+          text: z.string()
+            .min(1, { message: 'Option text is required' })
+            .refine(val => val.trim().length > 0, { message: 'Option text cannot be empty' })
+        })
+      )
+        .min(2, { message: 'At least 2 options are required' })
+        .refine(
+          options => new Set(options.map(o => o.text.trim())).size === options.length,
+          { message: 'All options must be unique' }
+        )
+    })),
+    defaultValues: {
+      title: '',
+      description: '',
+      isPublic: true,
+      allowMultipleVotes: false,
+      options: [{ text: '' }, { text: '' }]
     }
-    setOptions(options.filter(option => option.id !== id));
-    setError('');
-  };
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'options'
+  });
 
-    // Validate form
-    if (!title.trim()) {
-      setError('Title is required');
-      return;
-    }
-
-    if (!description.trim()) {
-      setError('Description is required');
-      return;
-    }
-
-    const filledOptions = options.filter(option => option.text.trim());
-    if (filledOptions.length < 2) {
-      setError('At least 2 options are required');
-      return;
-    }
-
+  // @form-submission
+  const onSubmit = async (data: PollFormValues) => {
     setIsSubmitting(true);
     
     try {
-      // This would be replaced with an actual API call
-      console.log('Creating poll:', { title, description, options: filledOptions });
+      // Call the server action to create the poll
+      const result = await createPoll(data);
       
-      // Simulate API delay
-      setTimeout(() => {
-        // Redirect to dashboard after successful creation
-        router.push('/dashboard');
-      }, 1000);
+      if (result.success) {
+        // Show success message
+        setSuccessMessage('Poll created successfully! Redirecting to dashboard...');
+        
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 2000);
+      } else {
+        // Handle validation errors
+        if (result.errors) {
+          // Set form errors based on the returned errors
+          if (result.errors.root?._errors) {
+            form.setError('root', { 
+              type: 'manual',
+              message: result.errors.root._errors[0]
+            });
+          }
+          
+          if (result.errors.title?._errors) {
+            form.setError('title', { 
+              type: 'manual',
+              message: result.errors.title._errors[0]
+            });
+          }
+          
+          if (result.errors.description?._errors) {
+            form.setError('description', { 
+              type: 'manual',
+              message: result.errors.description._errors[0]
+            });
+          }
+          
+          if (result.errors.options?._errors) {
+            form.setError('options', { 
+              type: 'manual',
+              message: result.errors.options._errors[0]
+            });
+          }
+        }
+        setIsSubmitting(false);
+      }
     } catch (err) {
       console.error('Error creating poll:', err);
-      setError('Failed to create poll. Please try again.');
+      form.setError('root', { 
+        type: 'manual',
+        message: 'Failed to create poll. Please try again.'
+      });
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
+    <div className="container max-w-2xl py-6">
+      <div className="mb-4">
         <Link 
           href="/dashboard" 
-          className="text-blue-600 hover:text-blue-800 font-medium"
+          className="text-primary hover:underline text-sm"
         >
           ← Back to Dashboard
         </Link>
       </div>
       
-      <div className="bg-white shadow rounded-lg p-6">
-        <h1 className="text-3xl font-bold mb-6">Create a New Poll</h1>
-        
-        {error && (
-          <div className="bg-red-50 p-4 rounded-md mb-6">
-            <p className="text-red-700">{error}</p>
-          </div>
-        )}
+      <h1 className="text-xl font-medium mb-6">Create a New Poll</h1>
+      
+      {form.formState.errors.root && (
+        <div className="p-3 border border-red-300 text-red-500 rounded mb-4">
+          <p>{form.formState.errors.root.message}</p>
+        </div>
+      )}
+      
+      {/* @success-message */}
+      {successMessage && (
+        <div className="p-3 border border-green-300 text-green-600 rounded mb-4">
+          <p>{successMessage}</p>
+        </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-              Poll Title
-            </label>
+      {/* @poll-form */}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div>
+          <label htmlFor="title" className="block text-sm mb-1">
+            Poll Title
+          </label>
+          <input
+            id="title"
+            {...form.register('title')}
+            className="w-full px-3 py-2 border border-border rounded focus:outline-none focus:border-primary"
+            placeholder="Enter a clear, specific question"
+          />
+          {form.formState.errors.title && (
+            <p className="mt-1 text-sm text-red-500">{form.formState.errors.title.message}</p>
+          )}
+        </div>
+        
+        <div>
+          <label htmlFor="description" className="block text-sm mb-1">
+            Description
+          </label>
+          <textarea
+            id="description"
+            {...form.register('description')}
+            rows={3}
+            className="w-full px-3 py-2 border border-border rounded focus:outline-none focus:border-primary"
+            placeholder="Provide additional context for your poll"
+          />
+          {form.formState.errors.description && (
+            <p className="mt-1 text-sm text-red-500">{form.formState.errors.description.message}</p>
+          )}
+        </div>
+        
+        {/* @poll-settings */}
+        <div className="flex flex-col sm:flex-row sm:space-x-6 space-y-2 sm:space-y-0">
+          <div className="flex items-center">
             <input
-              type="text"
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter a clear, specific question"
+              type="checkbox"
+              id="isPublic"
+              {...form.register('isPublic')}
+              className="h-4 w-4 text-primary border-border rounded"
             />
-          </div>
-          
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-              Description
+            <label htmlFor="isPublic" className="ml-2 block text-sm">
+              Make poll public
             </label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Provide additional context for your poll (optional)"
+          </div>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="allowMultipleVotes"
+              {...form.register('allowMultipleVotes')}
+              className="h-4 w-4 text-primary border-border rounded"
             />
+            <label htmlFor="allowMultipleVotes" className="ml-2 block text-sm">
+              Allow multiple votes
+            </label>
           </div>
-          
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Poll Options
-              </label>
-              <button
-                type="button"
-                onClick={addOption}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                + Add Option
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              {options.map((option) => (
-                <div key={option.id} className="flex items-center">
-                  <input
-                    type="text"
-                    value={option.text}
-                    onChange={(e) => handleOptionChange(option.id, e.target.value)}
-                    className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder={`Option ${option.id}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeOption(option.id)}
-                    className="ml-2 text-gray-400 hover:text-red-500"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          <div className="pt-4">
+        </div>
+        
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-sm">
+              Poll Options
+            </label>
             <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50"
+              type="button"
+              onClick={() => append({ text: '' })}
+              className="text-xs text-primary hover:underline"
             >
-              {isSubmitting ? 'Creating Poll...' : 'Create Poll'}
+              + Add Option
             </button>
           </div>
-        </form>
-      </div>
+          
+          <div className="space-y-2">
+            {fields.map((field, index) => (
+              <div key={field.id} className="flex items-center">
+                <input
+                  {...form.register(`options.${index}.text`)}
+                  className="flex-grow px-3 py-2 border border-border rounded focus:outline-none focus:border-primary"
+                  placeholder={`Option ${index + 1}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => fields.length > 2 ? remove(index) : null}
+                  className={`ml-2 ${fields.length > 2 ? 'text-muted-foreground hover:text-red-500' : 'text-muted-foreground/50 cursor-not-allowed'}`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {form.formState.errors.options && (
+              <p className="mt-1 text-sm text-red-500">{form.formState.errors.options.message}</p>
+            )}
+          </div>
+        </div>
+        
+        <div className="pt-4">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full btn-primary disabled:opacity-50"
+          >
+            {isSubmitting ? 'Creating Poll...' : 'Create Poll'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
