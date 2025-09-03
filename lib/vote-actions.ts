@@ -1,133 +1,93 @@
 'use server';
 
-import { z } from 'zod';
-import { supabase } from './supabase';
 import { revalidatePath } from 'next/cache';
-
-// Vote submission schema
-const voteSchema = z.object({
-  pollId: z.string().uuid(),
-  optionId: z.string().uuid(),
-});
-
-type VoteFormValues = z.infer<typeof voteSchema>;
+import { VoteFormValues, ActionResult, Poll } from './types';
+import { getCurrentUser, validateVotingPermissions } from './auth-helpers';
+import { getPollById, submitPollVote, getPollResults as getPollResultsFromDB } from './poll-operations';
+import { validateVoteData, validatePollId } from './validation-helpers';
+import { createErrorResponse, createSuccessResponse, handleError } from './error-helpers';
 
 /**
  * Server action to submit a vote for a poll option
  */
-export async function submitVote(formData: VoteFormValues) {
-  // Validate the form data
-  const validationResult = voteSchema.safeParse(formData);
-  
-  if (!validationResult.success) {
-    return {
-      success: false,
-      errors: validationResult.error.format()
-    };
-  }
-  
+export async function submitVote(formData: VoteFormValues): Promise<ActionResult> {
   try {
-    // Get the current user session
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
-    
-    // Check if the poll allows multiple votes
-    const { data: poll } = await supabase
-      .from('polls')
-      .select('allow_multiple_votes')
-      .eq('id', formData.pollId)
-      .single();
-    
-    if (!poll) {
-      return {
-        success: false,
-        errors: { root: { _errors: ['Poll not found'] } }
-      };
+    // Validate the form data
+    const validationResult = validateVoteData(formData);
+    if (!validationResult.success) {
+      return validationResult;
     }
-    
-    // If user is authenticated, check if they've already voted (if multiple votes not allowed)
-    if (userId && !poll.allow_multiple_votes) {
-      const { data: existingVote } = await supabase
-        .from('poll_votes')
-        .select('id')
-        .eq('poll_id', formData.pollId)
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (existingVote) {
-        return {
-          success: false,
-          errors: { root: { _errors: ['You have already voted on this poll'] } }
-        };
-      }
+
+    const validatedData = validationResult.data!;
+
+    // Get the current user
+    const currentUser = await getCurrentUser();
+    const userId = currentUser?.id;
+
+    // Get poll information
+    const pollResult = await getPollById(validatedData.pollId);
+    if (!pollResult.success) {
+      return pollResult;
     }
-    
+
+    const poll = pollResult.data!;
+
+    // Validate voting permissions
+    const permissionResult = await validateVotingPermissions(
+      validatedData.pollId,
+      userId || null,
+      poll.allow_multiple_votes
+    );
+    if (!permissionResult.success) {
+      return permissionResult;
+    }
+
     // For anonymous users, use IP address to track votes
     // In a real implementation, you would get the IP from the request
-    // For this example, we'll use a placeholder
-    const voterIp = userId ? null : 'anonymous-ip-placeholder';
-    
+    const voterIp = userId ? undefined : 'anonymous-ip-placeholder';
+
     // Submit the vote
-    const { error } = await supabase
-      .from('poll_votes')
-      .insert({
-        poll_id: formData.pollId,
-        option_id: formData.optionId,
-        user_id: userId,
-        voter_ip: voterIp
-      });
-    
-    if (error) {
-      console.error('Error submitting vote:', error);
-      return {
-        success: false,
-        errors: { root: { _errors: ['Failed to submit vote. Please try again.'] } }
-      };
+    const voteResult = await submitPollVote(
+      validatedData.pollId,
+      validatedData.optionId,
+      userId,
+      voterIp
+    );
+
+    if (!voteResult.success) {
+      return voteResult;
     }
-    
+
     // Revalidate the poll page to show updated results
-    revalidatePath(`/polls/${formData.pollId}`);
-    
-    return {
-      success: true
-    };
+    revalidatePath(`/polls/${validatedData.pollId}`);
+
+    return createSuccessResponse();
   } catch (error) {
-    console.error('Error in submitVote server action:', error);
-    return {
-      success: false,
-      errors: { root: { _errors: ['An unexpected error occurred. Please try again.'] } }
-    };
+    return handleError(error, 'submitVote');
   }
 }
 
 /**
- * Get poll results
+ * Get poll results with vote counts
  */
-export async function getPollResults(pollId: string) {
+export async function getPollResults(pollId: string): Promise<ActionResult<Poll>> {
   try {
-    const { data: poll, error: pollError } = await supabase
-      .from('polls')
-      .select('*, poll_options(*)')
-      .eq('id', pollId)
-      .single();
-    
-    if (pollError) {
-      console.error('Error fetching poll results:', pollError);
-      return {
-        success: false,
-        errors: { root: { _errors: ['Failed to fetch poll results. Please try again.'] } }
-      };
+    // Validate poll ID
+    const pollIdValidation = validatePollId(pollId);
+    if (!pollIdValidation.success) {
+      return pollIdValidation;
     }
-    
-    return {
-      success: true,
-      poll
-    };
+
+    const validatedPollId = pollIdValidation.data!;
+
+    // Get poll results from database
+    const pollResult = await getPollResultsFromDB(validatedPollId);
+    if (!pollResult.success) {
+      return pollResult;
+    }
+
+    return createSuccessResponse(pollResult.data);
   } catch (error) {
-    console.error('Error in getPollResults server action:', error);
-    return {
-      success: false,
-      errors: { root: { _errors: ['An unexpected error occurred. Please try again.'] } }
-    };
+    return handleError(error, 'getPollResults');
   }
 }
