@@ -4,18 +4,31 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../../lib/supabase';
+import { validateDevCredentials, createDevSession } from '../../../lib/dev-auth';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isDevMode] = useState(process.env.NODE_ENV === 'development');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
     try {
+      // Check for dev bypass first
+      if (isDevMode && validateDevCredentials(email, password)) {
+        // Store dev session in localStorage
+        const devUser = createDevSession();
+        localStorage.setItem('devUser', JSON.stringify(devUser));
+        localStorage.setItem('isDevMode', 'true');
+        router.push('/dashboard');
+        return;
+      }
+
+      // Regular Supabase authentication
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       router.push('/dashboard');
@@ -39,6 +52,16 @@ export default function LoginPage() {
             </Link>
           </p>
         </div>
+
+        {isDevMode && (
+          <div className="rounded-md bg-yellow-50 p-4 border border-yellow-200">
+            <div className="flex">
+              <div className="text-sm text-yellow-700">
+                <strong>Dev Mode:</strong> Use <code className="bg-yellow-100 px-1 rounded">admin</code> / <code className="bg-yellow-100 px-1 rounded">admin</code> to bypass authentication
+              </div>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="rounded-md bg-red-50 p-4">

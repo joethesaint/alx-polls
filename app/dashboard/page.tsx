@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { isDevMode } from '../../lib/dev-auth';
 
 interface Poll {
   id: string;
@@ -29,16 +30,19 @@ async function getPolls(supabase: any, userId: string) {
 }
 
 export default async function DashboardPage() {
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
   const supabase = createServerComponentClient({ cookies: () => cookieStore });
 
   const { data: { session } } = await supabase.auth.getSession();
 
-  if (!session) {
+  // In development mode, allow access without Supabase session
+  if (!session && !isDevMode()) {
     redirect('/auth/login');
   }
 
-  const polls = await getPolls(supabase, session.user.id);
+  // For dev mode, we'll use a placeholder user ID
+  const userId = session?.user?.id || 'dev-user-123';
+  const polls = await getPolls(supabase, userId);
 
   return (
     <div className="container mx-auto py-8">
@@ -46,10 +50,23 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold">Polls Dashboard</h1>
           <p className="text-muted-foreground">Create and manage your polls.</p>
+          {isDevMode() && !session && (
+            <p className="text-sm text-yellow-600 mt-1">🟡 Development Mode - Using dev user session</p>
+          )}
         </div>
-        <Link href="/polls/create" className="btn btn-primary">
-          Create Poll
-        </Link>
+        <div className="flex items-center space-x-4">
+          <Link href="/polls/create" className="btn btn-primary">
+            Create Poll
+          </Link>
+          {isDevMode() && !session && (
+            <Link 
+              href="/auth/logout" 
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Logout (Dev)
+            </Link>
+          )}
+        </div>
       </div>
 
       {polls.length === 0 ? (

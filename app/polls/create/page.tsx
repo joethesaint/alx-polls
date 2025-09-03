@@ -8,101 +8,47 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { createPoll, PollFormValues } from '../../../lib/actions';
 
+const pollSchema = z.object({
+  title: z.string().min(5, 'Title must be at least 5 characters').max(100, 'Title must be less than 100 characters'),
+  question: z.string().min(5, 'Question must be at least 5 characters').max(200, 'Question must be less than 200 characters'),
+  description: z.string().min(10, 'Description must be at least 10 characters').max(500, 'Description must be less than 500 characters'),
+  isPublic: z.boolean().default(true),
+  allowMultipleVotes: z.boolean().default(false),
+  options: z.array(z.object({ text: z.string().min(1, 'Option text is required') })).min(2, 'At least 2 options are required'),
+});
+
 export default function CreatePollPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  
+  const [errorMessage, setErrorMessage] = useState('');
+
   const form = useForm<PollFormValues>({
-    resolver: zodResolver(z.object({
-      title: z.string()
-        .min(5, { message: 'Title must be at least 5 characters' })
-        .max(100, { message: 'Title must be less than 100 characters' })
-        .refine(val => val.trim().length > 0, { message: 'Title cannot be empty' }),
-      question: z.string()
-        .min(5, { message: 'Question must be at least 5 characters' })
-        .max(200, { message: 'Question must be less than 200 characters' })
-        .refine(val => val.trim().length > 0, { message: 'Question cannot be empty' }),
-      description: z.string()
-        .min(10, { message: 'Description must be at least 10 characters' })
-        .max(500, { message: 'Description must be less than 500 characters' })
-        .refine(val => val.trim().length > 0, { message: 'Description cannot be empty' }),
-      isPublic: z.boolean().default(true),
-      allowMultipleVotes: z.boolean().default(false),
-      options: z.array(
-        z.object({
-          text: z.string()
-            .min(1, { message: 'Option text is required' })
-            .refine(val => val.trim().length > 0, { message: 'Option text cannot be empty' })
-        })
-      )
-        .min(2, { message: 'At least 2 options are required' })
-        .refine(
-          options => new Set(options.map(o => o.text.trim())).size === options.length,
-          { message: 'All options must be unique' }
-        )
-    })),
+    resolver: zodResolver(pollSchema),
     defaultValues: {
       title: '',
       question: '',
       description: '',
       isPublic: true,
       allowMultipleVotes: false,
-      options: [{ text: '' }, { text: '' }]
-    }
+      options: [{ text: '' }, { text: '' }],
+    },
   });
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: 'options'
+    name: 'options',
   });
 
   const onSubmit = async (data: PollFormValues) => {
     setIsSubmitting(true);
-    
-    try {
-      const result = await createPoll(data);
-      
-      if (result.success) {
-        setSuccessMessage('Poll created successfully! Redirecting to polls...');
-        
-        setTimeout(() => {
-          router.push('/polls');
-        }, 2000);
-      } else {
-        if (result.errors) {
-          if (result.errors.title?._errors) {
-            form.setError('title', { 
-              type: 'manual',
-              message: result.errors.title._errors[0]
-            });
-          }
-          
-          if (result.errors.question?._errors) {
-            form.setError('question', { 
-              type: 'manual',
-              message: result.errors.question._errors[0]
-            });
-          }
-          
-          if (result.errors.description?._errors) {
-            form.setError('description', { 
-              type: 'manual',
-              message: result.errors.description._errors[0]
-            });
-          }
-          
-          if (result.errors.options?._errors) {
-            form.setError('options', { 
-              type: 'manual',
-              message: result.errors.options._errors[0]
-            });
-          }
-        }
-        setIsSubmitting(false);
-      }
-    } catch (err) {
-      console.error('Error creating poll:', err);
+    setErrorMessage('');
+
+    const result = await createPoll(data);
+
+    if (result.success) {
+      router.push('/dashboard');
+    } else {
+      setErrorMessage(result.error || 'An unknown error occurred.');
       setIsSubmitting(false);
     }
   };
@@ -110,136 +56,132 @@ export default function CreatePollPage() {
   return (
     <div className="container max-w-2xl py-6">
       <div className="mb-4">
-        <Link 
-          href="/dashboard" 
-          className="text-blue-500 hover:underline text-sm"
-        >
-          ← Back to Dashboard
+        <Link href="/dashboard" className="btn btn-ghost">
+          &larr; Back to Dashboard
         </Link>
       </div>
-      
-      <h1 className="text-xl font-medium mb-6">Create a New Poll</h1>
-      
-      {successMessage && (
-        <div className="p-3 border border-green-300 text-green-600 rounded mb-4">
-          <p>{successMessage}</p>
+
+      <h1 className="text-2xl font-bold mb-6">Create a New Poll</h1>
+
+      {errorMessage && (
+        <div className="p-3 border border-destructive text-destructive rounded mb-4">
+          <p>{errorMessage}</p>
         </div>
       )}
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div>
-          <label htmlFor="title" className="block text-sm mb-1">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="space-y-2">
+          <label htmlFor="title" className="font-medium">
             Poll Title
           </label>
           <input
             id="title"
             {...form.register('title')}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-            placeholder="Enter a descriptive title for your poll"
+            className="w-full px-3 py-2 border rounded-md"
+            placeholder="e.g., Favorite Programming Language"
           />
           {form.formState.errors.title && (
-            <p className="mt-1 text-sm text-red-500">{form.formState.errors.title.message}</p>
+            <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>
           )}
         </div>
 
-        <div>
-          <label htmlFor="question" className="block text-sm mb-1">
+        <div className="space-y-2">
+          <label htmlFor="question" className="font-medium">
             Poll Question
           </label>
           <input
             id="question"
             {...form.register('question')}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-            placeholder="Enter the main question for your poll"
+            className="w-full px-3 py-2 border rounded-md"
+            placeholder="e.g., What is your favorite programming language?"
           />
           {form.formState.errors.question && (
-            <p className="mt-1 text-sm text-red-500">{form.formState.errors.question.message}</p>
+            <p className="text-sm text-destructive">{form.formState.errors.question.message}</p>
           )}
         </div>
-        
-        <div>
-          <label htmlFor="description" className="block text-sm mb-1">
+
+        <div className="space-y-2">
+          <label htmlFor="description" className="font-medium">
             Description
           </label>
           <textarea
             id="description"
             {...form.register('description')}
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-            placeholder="Provide additional context for your poll"
+            className="w-full px-3 py-2 border rounded-md"
+            placeholder="A brief description of your poll."
           />
           {form.formState.errors.description && (
-            <p className="mt-1 text-sm text-red-500">{form.formState.errors.description.message}</p>
+            <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>
           )}
         </div>
-        
-        <div className="flex flex-col sm:flex-row sm:space-x-6 space-y-2 sm:space-y-0">
-          <div className="flex items-center">
+
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
             <input
               type="checkbox"
               id="isPublic"
               {...form.register('isPublic')}
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              className="h-4 w-4"
             />
-            <label htmlFor="isPublic" className="ml-2 block text-sm">
-              Make poll public
+            <label htmlFor="isPublic" className="font-medium">
+              Public Poll
             </label>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center space-x-2">
             <input
               type="checkbox"
               id="allowMultipleVotes"
               {...form.register('allowMultipleVotes')}
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              className="h-4 w-4"
             />
-            <label htmlFor="allowMultipleVotes" className="ml-2 block text-sm">
-              Allow multiple votes
+            <label htmlFor="allowMultipleVotes" className="font-medium">
+              Allow Multiple Votes
             </label>
           </div>
         </div>
-        
+
         <div>
           <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm">
-              Poll Options
-            </label>
+            <label className="font-medium">Poll Options</label>
             <button
               type="button"
               onClick={() => append({ text: '' })}
-              className="text-xs text-blue-600 hover:underline"
+              className="btn btn-ghost text-sm"
             >
               + Add Option
             </button>
           </div>
-          
+
           <div className="space-y-2">
             {fields.map((field, index) => (
-              <div key={field.id} className="flex items-center">
+              <div key={field.id} className="flex items-center space-x-2">
                 <input
                   {...form.register(`options.${index}.text`)}
-                  className="flex-grow px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                  className="flex-grow px-3 py-2 border rounded-md"
                   placeholder={`Option ${index + 1}`}
                 />
                 <button
                   type="button"
-                  onClick={() => fields.length > 2 ? remove(index) : null}
-                  className={`ml-2 ${fields.length > 2 ? 'text-gray-500 hover:text-red-500' : 'text-gray-300 cursor-not-allowed'}`}
+                  onClick={() => remove(index)}
+                  disabled={fields.length <= 2}
+                  className="btn btn-ghost disabled:opacity-50"
                 >
-                  ×
+                  Remove
                 </button>
               </div>
             ))}
             {form.formState.errors.options && (
-              <p className="mt-1 text-sm text-red-500">{form.formState.errors.options.message}</p>
+              <p className="text-sm text-destructive">{form.formState.errors.options.message}</p>
             )}
           </div>
         </div>
-        
+
         <div className="pt-4">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            className="w-full btn btn-primary"
           >
             {isSubmitting ? 'Creating Poll...' : 'Create Poll'}
           </button>

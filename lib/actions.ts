@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { supabase } from './supabase';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+import { isDevMode } from './dev-auth';
 
 // Poll creation schema for validation
 const pollSchema = z.object({
@@ -51,25 +51,32 @@ export async function createPoll(formData: PollFormValues) {
     // Get the current user session
     const { data: { session } } = await supabase.auth.getSession();
     
-    if (!session) {
+    // In dev mode, allow creation without Supabase session
+    if (!session && !isDevMode()) {
       return {
         success: false,
         errors: { root: { _errors: ['You must be logged in to create a poll'] } }
       };
     }
     
-    const userId = session.user.id;
+    const userId = session?.user?.id || 'dev-user-123';
+    
+    // Extract options text into an array for the database
+    const optionsArray = formData.options.map(option => option.text.trim());
     
     // Create the poll in Supabase
     const { data: poll, error: pollError } = await supabase
       .from('polls')
       .insert({
         title: formData.title,
+        question: formData.question,
         description: formData.description,
+        options: optionsArray,
         is_public: formData.isPublic,
         allow_multiple_votes: formData.allowMultipleVotes,
         user_id: userId,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .select()
       .single();
@@ -82,25 +89,6 @@ export async function createPoll(formData: PollFormValues) {
       };
     }
     
-    // Create the poll options
-    const pollOptions = formData.options.map(option => ({
-      poll_id: poll.id,
-      text: option.text.trim(),
-      votes: 0
-    }));
-    
-    const { error: optionsError } = await supabase
-      .from('poll_options')
-      .insert(pollOptions);
-    
-    if (optionsError) {
-      console.error('Error creating poll options:', optionsError);
-      return {
-        success: false,
-        errors: { root: { _errors: ['Failed to create poll options. Please try again.'] } }
-      };
-    }
-    
     // Revalidate the dashboard path to show the new poll
     revalidatePath('/dashboard');
     
@@ -110,6 +98,201 @@ export async function createPoll(formData: PollFormValues) {
     };
   } catch (error) {
     console.error('Error in createPoll server action:', error);
+    return {
+      success: false,
+      errors: { root: { _errors: ['An unexpected error occurred. Please try again.'] } }
+    };
+  }
+}
+
+/**
+ * Server action to delete a poll
+ */
+export async function deletePoll(pollId: string) {
+  try {
+    // Get the current user session
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      return {
+        success: false,
+        error: 'You must be logged in to delete a poll'
+      };
+    }
+    
+    // First, verify the poll belongs to the current user
+    const { data: poll, error: fetchError } = await supabase
+      .from('polls')
+      .select('user_id')
+      .eq('id', pollId)
+      .single();
+    
+    if (fetchError || !poll) {
+      return {
+        success: false,
+        error: 'Poll not found'
+      };
+    }
+    
+    if (poll.user_id !== session.user.id) {
+      return {
+        success: false,
+        error: 'You can only delete your own polls'
+      };
+    }
+    
+    // Delete poll options first (due to foreign key constraint)
+    const { error: optionsError } = await supabase
+      .from('poll_options')
+      .delete()
+      .eq('poll_id', pollId);
+    
+    if (optionsError) {
+      console.error('Error deleting poll options:', optionsError);
+      return {
+        success: false,
+        error: 'Failed to delete poll options'
+      };
+    }
+    
+    // Delete the poll
+    const { error: pollError } = await supabase
+      .from('polls')
+      .delete()
+      .eq('id', pollId);
+    
+    if (pollError) {
+      console.error('Error deleting poll:', pollError);
+      return {
+        success: false,
+        error: 'Failed to delete poll'
+      };
+    }
+    
+    // Revalidate the dashboard path
+    revalidatePath('/dashboard');
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error in deletePoll server action:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred'
+    };
+  }
+}
+
+/**
+ * Server action to update a poll
+ */
+export async function updatePoll(pollId: string, formData: PollFormValues) {
+  // Validate the form data
+  const validationResult = pollSchema.safeParse(formData);
+  
+  if (!validationResult.success) {
+    return {
+      success: false,
+      errors: validationResult.error.format()
+    };
+  }
+  
+  try {
+    // Get the current user session
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      return {
+        success: false,
+        errors: { root: { _errors: ['You must be logged in to update a poll'] } }
+      };
+    }
+    
+    // First, verify the poll belongs to the current user
+    const { data: poll, error: fetchError } = await supabase
+      .from('polls')
+      .select('user_id')
+      .eq('id', pollId)
+      .single();
+    
+    if (fetchError || !poll) {
+      return {
+        success: false,
+        errors: { root: { _errors: ['Poll not found'] } }
+      };
+    }
+    
+    if (poll.user_id !== session.user.id) {
+      return {
+        success: false,
+        errors: { root: { _errors: ['You can only edit your own polls'] } }
+      };
+    }
+    
+    // Update the poll
+    const { error: pollError } = await supabase
+      .from('polls')
+      .update({
+        title: formData.title,
+        description: formData.description,
+        is_public: formData.isPublic,
+        allow_multiple_votes: formData.allowMultipleVotes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', pollId);
+    
+    if (pollError) {
+      console.error('Error updating poll:', pollError);
+      return {
+        success: false,
+        errors: { root: { _errors: ['Failed to update poll. Please try again.'] } }
+      };
+    }
+    
+    // Delete existing options
+    const { error: deleteOptionsError } = await supabase
+      .from('poll_options')
+      .delete()
+      .eq('poll_id', pollId);
+    
+    if (deleteOptionsError) {
+      console.error('Error deleting old poll options:', deleteOptionsError);
+      return {
+        success: false,
+        errors: { root: { _errors: ['Failed to update poll options. Please try again.'] } }
+      };
+    }
+    
+    // Create new poll options
+    const pollOptions = formData.options.map(option => ({
+      poll_id: pollId,
+      text: option.text.trim(),
+      votes: 0
+    }));
+    
+    const { error: optionsError } = await supabase
+      .from('poll_options')
+      .insert(pollOptions);
+    
+    if (optionsError) {
+      console.error('Error creating new poll options:', optionsError);
+      return {
+        success: false,
+        errors: { root: { _errors: ['Failed to update poll options. Please try again.'] } }
+      };
+    }
+    
+    // Revalidate the dashboard path
+    revalidatePath('/dashboard');
+    revalidatePath(`/polls/${pollId}`);
+    
+    return {
+      success: true,
+      pollId: pollId
+    };
+  } catch (error) {
+    console.error('Error in updatePoll server action:', error);
     return {
       success: false,
       errors: { root: { _errors: ['An unexpected error occurred. Please try again.'] } }
