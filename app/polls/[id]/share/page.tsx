@@ -76,14 +76,14 @@ export default function SharePollPage({ params }: { params: Promise<{ id: string
           <div className="flex space-x-4">
             <Link 
               href={`/polls/${pollId}`}
-              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
+              className="btn btn-primary"
             >
               View Poll
             </Link>
             
             <Link 
               href="/dashboard"
-              className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded transition-colors"
+              className="btn btn-secondary"
             >
               Back to Dashboard
             </Link>

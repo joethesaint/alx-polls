@@ -48,18 +48,22 @@ export async function createPoll(formData: PollFormValues) {
   }
   
   try {
-    // Get the current user session
-    const { data: { session } } = await supabase.auth.getSession();
+    let session = null;
     
-    // In dev mode, allow creation without Supabase session
-    if (!session && !isDevMode()) {
-      return {
-        success: false,
-        errors: { root: { _errors: ['You must be logged in to create a poll'] } }
-      };
+    // Only check session if not in dev mode
+    if (!isDevMode()) {
+      const { data } = await supabase.auth.getSession();
+      session = data.session;
+      
+      if (!session) {
+        return {
+          success: false,
+          errors: { root: { _errors: ['You must be logged in to create a poll'] } }
+        };
+      }
     }
     
-    const userId = session?.user?.id || 'dev-user-123';
+    const userId = session?.user?.id || '00000000-0000-0000-0000-000000000001';
     
     // Extract options text into an array for the database
     const optionsArray = formData.options.map(option => option.text.trim());
@@ -69,23 +73,39 @@ export async function createPoll(formData: PollFormValues) {
       .from('polls')
       .insert({
         title: formData.title,
-        question: formData.question,
         description: formData.description,
-        options: optionsArray,
         is_public: formData.isPublic,
         allow_multiple_votes: formData.allowMultipleVotes,
-        user_id: userId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        user_id: userId
       })
       .select()
       .single();
-    
+
     if (pollError) {
       console.error('Error creating poll:', pollError);
       return {
         success: false,
         errors: { root: { _errors: ['Failed to create poll. Please try again.'] } }
+      };
+    }
+
+    // Create poll options
+    const optionsToInsert = optionsArray.map(optionText => ({
+      poll_id: poll.id,
+      text: optionText
+    }));
+
+    const { error: optionsError } = await supabase
+      .from('poll_options')
+      .insert(optionsToInsert);
+
+    if (optionsError) {
+      console.error('Error creating poll options:', optionsError);
+      // Clean up the poll if options failed
+      await supabase.from('polls').delete().eq('id', poll.id);
+      return {
+        success: false,
+        errors: { root: { _errors: ['Failed to create poll options. Please try again.'] } }
       };
     }
     

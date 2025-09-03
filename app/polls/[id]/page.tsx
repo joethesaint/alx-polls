@@ -207,7 +207,7 @@ export default function PollDetailPage({ params }: { params: Promise<{ id: strin
             <div className="mt-6">
               <button
                 onClick={handleVote}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full sm:w-auto"
+                className="btn btn-primary font-bold w-full sm:w-auto"
               >
                 Submit Vote
               </button>

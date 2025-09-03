@@ -1,8 +1,7 @@
 import Link from 'next/link';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { isDevMode } from '../../lib/dev-auth';
+import { supabase } from '../../lib/supabase';
 
 interface Poll {
   id: string;
@@ -30,18 +29,20 @@ async function getPolls(supabase: any, userId: string) {
 }
 
 export default async function DashboardPage() {
-  const cookieStore = cookies();
-  const supabase = createServerComponentClient({ cookies: () => cookieStore });
-
-  const { data: { session } } = await supabase.auth.getSession();
-
-  // In development mode, allow access without Supabase session
-  if (!session && !isDevMode()) {
-    redirect('/auth/login');
+  let session = null;
+  
+  // Only check session if not in dev mode
+  if (!isDevMode()) {
+    const { data } = await supabase.auth.getSession();
+    session = data.session;
+    
+    if (!session) {
+      redirect('/auth/login');
+    }
   }
 
   // For dev mode, we'll use a placeholder user ID
-  const userId = session?.user?.id || 'dev-user-123';
+  const userId = session?.user?.id || '00000000-0000-0000-0000-000000000001';
   const polls = await getPolls(supabase, userId);
 
   return (

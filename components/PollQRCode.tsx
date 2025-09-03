@@ -50,7 +50,8 @@ export default function PollQRCode({ pollId, size = 128 }: PollQRCodeProps) {
           />
           <button
             onClick={handleCopyLink}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-r-md py-2 px-4 text-sm transition-colors"
+            className="btn btn-primary text-sm"
+            style={{ borderRadius: '0 50px 50px 0' }}
           >
             {copied ? 'Copied!' : 'Copy'}
           </button>
