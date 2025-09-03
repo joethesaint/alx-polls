@@ -1,10 +1,7 @@
 -- Create polls table
 CREATE TABLE IF NOT EXISTS polls (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title TEXT NOT NULL,
-  description TEXT NOT NULL,
-  is_public BOOLEAN NOT NULL DEFAULT TRUE,
-  allow_multiple_votes BOOLEAN NOT NULL DEFAULT FALSE,
+  question TEXT NOT NULL,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE
@@ -39,11 +36,6 @@ ALTER TABLE poll_options ENABLE ROW LEVEL SECURITY;
 ALTER TABLE poll_votes ENABLE ROW LEVEL SECURITY;
 
 -- Polls policies
--- Users can view public polls or their own polls
-CREATE POLICY "Public polls are viewable by everyone" 
-  ON polls FOR SELECT 
-  USING (is_public = TRUE);
-
 CREATE POLICY "Users can view their own polls" 
   ON polls FOR SELECT 
   USING (user_id = auth.uid());
@@ -63,16 +55,6 @@ CREATE POLICY "Users can delete their own polls"
   USING (user_id = auth.uid());
 
 -- Poll options policies
--- Anyone can view options for public polls
-CREATE POLICY "Options for public polls are viewable by everyone" 
-  ON poll_options FOR SELECT 
-  USING (
-    EXISTS (
-      SELECT 1 FROM polls 
-      WHERE polls.id = poll_options.poll_id AND polls.is_public = TRUE
-    )
-  );
-
 -- Users can view options for their own polls
 CREATE POLICY "Users can view options for their own polls" 
   ON poll_options FOR SELECT 
@@ -112,16 +94,6 @@ CREATE POLICY "Poll owners can delete options"
   );
 
 -- Poll votes policies
--- Anyone can view votes for public polls
-CREATE POLICY "Votes for public polls are viewable by everyone" 
-  ON poll_votes FOR SELECT 
-  USING (
-    EXISTS (
-      SELECT 1 FROM polls 
-      WHERE polls.id = poll_votes.poll_id AND polls.is_public = TRUE
-    )
-  );
-
 -- Users can view votes for their own polls
 CREATE POLICY "Users can view votes for their own polls" 
   ON poll_votes FOR SELECT 

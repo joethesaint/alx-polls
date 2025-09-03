@@ -1,35 +1,35 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return;
     }
-    
+
     // This is a placeholder for actual registration logic
     try {
       // Simulate registration
-      console.log('Registration attempt with:', { name, email, password });
-      
+      console.log("Registration attempt with:", { name, email, password });
+
       // Redirect to login after successful registration
-      router.push('/auth/login');
+      router.push("/auth/login");
     } catch (err) {
-      setError('Registration failed');
+      setError("Registration failed");
       console.error(err);
     }
   };
@@ -42,8 +42,11 @@ export default function RegisterPage() {
             Create a new account
           </h2>
           <p className="mt-2 text-center text-sm">
-            Or{' '}
-            <Link href="/auth/login" className="font-medium text-blue-600 hover:text-blue-500">
+            Or{" "}
+            <Link
+              href="/auth/login"
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
               sign in to your account
             </Link>
           </p>

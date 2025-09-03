@@ -1,7 +1,7 @@
 # ALX Polls App Setup Guide
 
 ## Prerequisites
-- Node.js 18+ installed
+- Node.js 18+
 - Supabase account and project
 
 ## Setup Steps
@@ -20,33 +20,36 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- polls table
 CREATE TABLE IF NOT EXISTS polls (
-  id          uuid    DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id     uuid    REFERENCES auth.users(id) ON DELETE SET NULL,
-  question    text    NOT NULL,
-  options     text[]  NOT NULL,
-  title       text    NOT NULL,
-  description text,
-  is_public   boolean DEFAULT false,
-  allow_multiple_votes boolean DEFAULT false,
-  end_date    timestamp with time zone,
-  created_at  timestamp with time zone DEFAULT now() NOT NULL,
-  updated_at  timestamp with time zone DEFAULT now() NOT NULL,
-  expires_at  timestamp with time zone,
-  is_active   boolean DEFAULT true
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  question TEXT NOT NULL,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE
 );
 
--- votes table
-CREATE TABLE IF NOT EXISTS votes (
-  id          uuid    PRIMARY KEY DEFAULT uuid_generate_v4(),
-  poll_id     uuid    REFERENCES polls(id) ON DELETE CASCADE,
-  user_id     uuid    REFERENCES auth.users(id) ON DELETE SET NULL,
-  option_index integer NOT NULL,
-  created_at  timestamp with time zone DEFAULT timezone('utc', now())
+-- Create poll options table
+CREATE TABLE IF NOT EXISTS poll_options (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  poll_id UUID NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  votes INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- optional: prevent duplicate votes per user per poll (if desired)
-CREATE UNIQUE INDEX IF NOT EXISTS unique_vote_per_user_per_poll
-  ON votes (poll_id, user_id);
+-- Create votes table to track who has voted
+CREATE TABLE IF NOT EXISTS poll_votes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  poll_id UUID NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+  option_id UUID NOT NULL REFERENCES poll_options(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  voter_ip TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE (poll_id, option_id, user_id),
+  CONSTRAINT user_or_ip_required CHECK (user_id IS NOT NULL OR voter_ip IS NOT NULL)
+);
+
+-- Set up Row Level Security (RLS) policies
+-- (RLS policies are defined in supabase-schema.sql and are not included here for brevity)
 ```
 
 ### 3. Environment Variables
@@ -67,15 +70,15 @@ The app will be available at `http://localhost:3000`
 ## Features
 - User authentication (login/register)
 - Create polls with multiple options
-- Public/private poll settings
-- Multiple vote allowance
 - Dashboard to view created polls
 - Poll sharing functionality
+- Real-time voting results
 
 ## Database Schema
 The app uses a simple schema where:
-- `polls` table stores poll information with options as a text array
-- `votes` table tracks individual votes with option indices
+- `polls` table stores poll information (question, user_id, timestamps)
+- `poll_options` table stores individual options for each poll
+- `poll_votes` table tracks individual votes
 - Row Level Security (RLS) is enabled for data protection
 
 ## Troubleshooting

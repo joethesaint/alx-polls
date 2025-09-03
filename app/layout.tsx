@@ -31,9 +31,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           <Navigation />
-          <main className="container py-6">
-            {children}
-          </main>
+          <main className="container py-6">{children}</main>
         </AuthProvider>
       </body>
     </html>

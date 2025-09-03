@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -8,16 +8,14 @@ export default function Home() {
           Create and Share Polls with Ease
         </h1>
         <p className="max-w-[42rem] leading-normal text-muted-foreground sm:text-xl sm:leading-8">
-          ALX Polls is a modern, open-source polling platform that makes it simple to create, share, and analyze polls.
+          ALX Polls is a modern, open-source polling platform that makes it
+          simple to create, share, and analyze polls.
         </p>
         <div className="space-x-4">
           <Link href="/auth/register" className="btn btn-primary">
             Get Started
           </Link>
-          <Link
-            href="/dashboard"
-            className="btn btn-secondary"
-          >
+          <Link href="/dashboard" className="btn btn-secondary">
             View Dashboard
           </Link>
         </div>

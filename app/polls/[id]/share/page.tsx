@@ -1,14 +1,18 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import PollQRCode from '../../../../components/PollQRCode';
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import PollQRCode from "../../../../components/PollQRCode";
 
-export default function SharePollPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter();
-  const [pollTitle, setPollTitle] = useState('');
-  const [pollId, setPollId] = useState('');
+export default function SharePollPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const _router = useRouter();
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollId, setPollId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,18 +22,18 @@ export default function SharePollPage({ params }: { params: Promise<{ id: string
         setLoading(true);
         const resolvedParams = await params;
         const response = await fetch(`/api/polls/${resolvedParams.id}`);
-        
+
         if (response.ok) {
           const pollData = await response.json();
-          setPollTitle(pollData.title);
+          setPollQuestion(pollData.question);
           setPollId(pollData.id);
         } else {
-          setError('Failed to load poll details');
+          setError("Failed to load poll details");
         }
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching poll details:', error);
-        setError('Failed to load poll details');
+        console.error("Error fetching poll details:", error);
+        setError("Failed to load poll details");
         setLoading(false);
       }
     };
@@ -56,7 +60,10 @@ export default function SharePollPage({ params }: { params: Promise<{ id: string
         <div className="bg-red-50 p-4 rounded-md mb-4">
           <p className="text-red-800">{error}</p>
         </div>
-        <Link href="/dashboard" className="text-blue-600 hover:text-blue-800 font-medium">
+        <Link
+          href="/dashboard"
+          className="text-blue-600 hover:text-blue-800 font-medium"
+        >
           ← Back to Dashboard
         </Link>
       </div>
@@ -67,24 +74,20 @@ export default function SharePollPage({ params }: { params: Promise<{ id: string
     <div className="container mx-auto px-4 py-16">
       <div className="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl p-6">
         <div className="flex flex-col items-center">
-          <h1 className="text-2xl font-bold text-center mb-6">{pollTitle}</h1>
-          
+          <h1 className="text-2xl font-bold text-center mb-6">
+            {pollQuestion}
+          </h1>
+
           <div className="mb-8">
             <PollQRCode pollId={pollId} size={200} />
           </div>
-          
+
           <div className="flex space-x-4">
-            <Link 
-              href={`/polls/${pollId}`}
-              className="btn btn-primary"
-            >
+            <Link href={`/polls/${pollId}`} className="btn btn-primary">
               View Poll
             </Link>
-            
-            <Link 
-              href="/dashboard"
-              className="btn btn-secondary"
-            >
+
+            <Link href="/dashboard" className="btn btn-secondary">
               Back to Dashboard
             </Link>
           </div>

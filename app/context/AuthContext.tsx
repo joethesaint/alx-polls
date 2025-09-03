@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { Session, User } from '@supabase/supabase-js';
+import type { Session, User } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
 
 interface AuthContextType {
   user: User | null;
@@ -10,7 +10,11 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, session: null, signOut: async () => {} });
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  session: null,
+  signOut: async () => {},
+});
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -25,10 +29,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     getSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-    });
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        // Prepend event with underscore
+        setSession(session);
+        setUser(session?.user ?? null);
+      },
+    );
 
     return () => {
       authListener.subscription.unsubscribe();

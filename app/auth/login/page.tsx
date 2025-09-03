@@ -1,39 +1,49 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { supabase } from '../../../lib/supabase';
-import { validateDevCredentials, createDevSession } from '../../../lib/dev-auth';
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import {
+  createDevSession,
+  validateDevCredentials,
+} from "../../../lib/dev-auth";
+import { supabase } from "../../../lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isDevMode] = useState(process.env.NODE_ENV === 'development');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isDevMode] = useState(process.env.NODE_ENV === "development");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    
+    setError("");
+
     try {
       // Check for dev bypass first
       if (isDevMode && validateDevCredentials(email, password)) {
         // Store dev session in localStorage
         const devUser = createDevSession();
-        localStorage.setItem('devUser', JSON.stringify(devUser));
-        localStorage.setItem('isDevMode', 'true');
-        router.push('/dashboard');
+        localStorage.setItem("devUser", JSON.stringify(devUser));
+        localStorage.setItem("isDevMode", "true");
+        router.push("/dashboard");
         return;
       }
 
       // Regular Supabase authentication
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       if (error) throw error;
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message);
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred");
+      }
       console.error(err);
     }
   };
@@ -46,8 +56,11 @@ export default function LoginPage() {
             Sign in to your account
           </h2>
           <p className="mt-2 text-center text-sm">
-            Or{' '}
-            <Link href="/auth/register" className="font-medium text-blue-600 hover:text-blue-500">
+            Or{" "}
+            <Link
+              href="/auth/register"
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
               create a new account
             </Link>
           </p>
@@ -57,7 +70,13 @@ export default function LoginPage() {
           <div className="rounded-md bg-yellow-50 p-4 border border-yellow-200">
             <div className="flex">
               <div className="text-sm text-yellow-700">
-                <strong>Dev Mode:</strong> Use <code className="bg-yellow-100 px-1 rounded">admin</code> or <code className="bg-yellow-100 px-1 rounded">admin@example.com</code> / <code className="bg-yellow-100 px-1 rounded">admin</code> to bypass authentication
+                <strong>Dev Mode:</strong> Use{" "}
+                <code className="bg-yellow-100 px-1 rounded">admin</code> or{" "}
+                <code className="bg-yellow-100 px-1 rounded">
+                  admin@example.com
+                </code>{" "}
+                / <code className="bg-yellow-100 px-1 rounded">admin</code> to
+                bypass authentication
               </div>
             </div>
           </div>

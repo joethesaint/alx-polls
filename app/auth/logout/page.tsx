@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function LogoutPage() {
   const router = useRouter();
 
   useEffect(() => {
     // Clear dev user session
-    localStorage.removeItem('devUser');
-    localStorage.removeItem('isDevMode');
-    
+    localStorage.removeItem("devUser");
+    localStorage.removeItem("isDevMode");
+
     // Redirect to login after a short delay
     const timer = setTimeout(() => {
-      router.push('/auth/login');
+      router.push("/auth/login");
     }, 1000);
 
     return () => clearTimeout(timer);
@@ -31,10 +31,10 @@ export default function LogoutPage() {
             You have been successfully logged out.
           </p>
         </div>
-        
+
         <div className="mt-4">
-          <Link 
-            href="/auth/login" 
+          <Link
+            href="/auth/login"
             className="text-blue-600 hover:text-blue-500 font-medium"
           >
             Return to Login

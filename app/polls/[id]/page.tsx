@@ -1,27 +1,32 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import PollQRCode from '../../../components/PollQRCode';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import PollQRCode from "../../../components/PollQRCode";
 
 interface Poll {
   id: string;
-  title: string;
   question: string;
-  description: string;
-  options: string[];
+  options: PollOption[]; // Change from string[]
   created_at: string;
-  is_public: boolean;
-  allow_multiple_votes: boolean;
   user_id: string;
 }
 
-export default function PollDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter();
+interface PollOption { // Add this interface
+  id: string;
+  text: string;
+}
+
+export default function PollDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const _router = useRouter();
   const [poll, setPoll] = useState<Poll | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null); // Change to string | null
   const [hasVoted, setHasVoted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,17 +37,17 @@ export default function PollDetailPage({ params }: { params: Promise<{ id: strin
         setLoading(true);
         const resolvedParams = await params;
         const response = await fetch(`/api/polls/${resolvedParams.id}`);
-        
+
         if (response.ok) {
           const pollData = await response.json();
           setPoll(pollData);
         } else {
-          setError('Failed to load poll details');
+          setError("Failed to load poll details");
         }
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching poll details:', error);
-        setError('Failed to load poll details');
+        console.error("Error fetching poll details:", error);
+        setError("Failed to load poll details");
         setLoading(false);
       }
     };
@@ -52,24 +57,24 @@ export default function PollDetailPage({ params }: { params: Promise<{ id: strin
 
   const handleVote = async () => {
     if (selectedOption === null) {
-      setError('Please select an option');
+      setError("Please select an option");
       return;
     }
 
     setError(null);
-    
+
     try {
       const resolvedParams = await params;
       const response = await fetch(`/api/polls/${resolvedParams.id}/vote`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          optionIndex: selectedOption
-        })
+          optionId: selectedOption, // Change from optionIndex
+        }),
       });
-      
+
       if (response.ok) {
         setHasVoted(true);
         // Refresh poll data to show updated results
@@ -80,11 +85,13 @@ export default function PollDetailPage({ params }: { params: Promise<{ id: strin
         }
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'Failed to submit your vote. Please try again.');
+        setError(
+          errorData.message || "Failed to submit your vote. Please try again.",
+        );
       }
     } catch (error) {
-      console.error('Error submitting vote:', error);
-      setError('Failed to submit your vote. Please try again.');
+      console.error("Error submitting vote:", error);
+      setError("Failed to submit your vote. Please try again.");
     }
   };
 
@@ -104,8 +111,8 @@ export default function PollDetailPage({ params }: { params: Promise<{ id: strin
         <div className="bg-red-50 p-4 rounded-md mb-4">
           <p className="text-red-700">{error}</p>
         </div>
-        <Link 
-          href="/dashboard" 
+        <Link
+          href="/dashboard"
           className="text-blue-600 hover:text-blue-800 font-medium"
         >
           Back to Dashboard
@@ -120,8 +127,8 @@ export default function PollDetailPage({ params }: { params: Promise<{ id: strin
         <div className="bg-yellow-50 p-4 rounded-md mb-4">
           <p className="text-yellow-700">Poll not found</p>
         </div>
-        <Link 
-          href="/dashboard" 
+        <Link
+          href="/dashboard"
           className="text-blue-600 hover:text-blue-800 font-medium"
         >
           Back to Dashboard
@@ -133,34 +140,49 @@ export default function PollDetailPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <Link 
-          href="/dashboard" 
+        <Link
+          href="/dashboard"
           className="text-blue-600 hover:text-blue-800 flex items-center font-medium"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 mr-1"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <title>Back to Dashboard</title> // Add this
+            <path
+              fillRule="evenodd"
+              d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z"
+              clipRule="evenodd"
+            />
           </svg>
           Back to Dashboard
         </Link>
       </div>
-      
+
       <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <h1 className="text-3xl font-bold mb-2">{poll.title}</h1>
-        <p className="text-xl font-medium text-gray-700 mb-2">{poll.question}</p>
-        <p className="text-gray-600 mb-4">{poll.description}</p>
+        <h1 className="text-3xl font-bold mb-4">{poll.question}</h1>
         <div className="text-sm text-gray-500 mb-6">
-          Created on {new Date(poll.created_at).toLocaleDateString()} • {poll.options.length} options
+          Created on {new Date(poll.created_at).toLocaleDateString()} •{" "}
+          {poll.options.length} options
         </div>
-        
+
         {/* Share Poll Section */}
         <div className="mb-8 p-4 bg-gray-50 rounded-lg">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Share this Poll</h2>
-            <Link 
+            <Link
               href={`/polls/${poll.id}/share`}
               className="bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded-md text-sm flex items-center"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 mr-1"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <title>Share Poll</title> // Add this
                 <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
               </svg>
               Share Page
@@ -168,7 +190,7 @@ export default function PollDetailPage({ params }: { params: Promise<{ id: strin
           </div>
           <PollQRCode pollId={poll.id} />
         </div>
-        
+
         {error && (
           <div className="bg-red-50 p-4 rounded-md mb-4">
             <p className="text-red-700">{error}</p>
@@ -177,35 +199,38 @@ export default function PollDetailPage({ params }: { params: Promise<{ id: strin
 
         {hasVoted ? (
           <div>
-            <h2 className="text-xl font-semibold mb-4">Thank you for voting!</h2>
+            <h2 className="text-xl font-semibold mb-4">
+              Thank you for voting!
+            </h2>
             <p className="text-gray-600">Your vote has been recorded.</p>
           </div>
         ) : (
           <div>
             <h2 className="text-xl font-semibold mb-4">Cast your vote</h2>
             <div className="space-y-3">
-              {poll.options.map((option, index) => (
-                <div key={index} className="flex items-center">
+              {poll.options.map((option) => (
+                <div key={option.id} className="flex items-center">
                   <input
                     type="radio"
-                    id={`option-${index}`}
+                    id={`option-${option.id}`}
                     name="poll-option"
-                    value={index}
-                    checked={selectedOption === index}
-                    onChange={() => setSelectedOption(index)}
+                    value={option.id}
+                    checked={selectedOption === option.id}
+                    onChange={() => setSelectedOption(option.id)}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                   />
-                  <label 
-                    htmlFor={`option-${index}`} 
+                  <label
+                    htmlFor={`option-${option.id}`}
                     className="ml-2 block text-gray-700"
                   >
-                    {option}
+                    {option.text}
                   </label>
                 </div>
               ))}
             </div>
             <div className="mt-6">
               <button
+                type="button"
                 onClick={handleVote}
                 className="btn btn-primary font-bold w-full sm:w-auto"
               >

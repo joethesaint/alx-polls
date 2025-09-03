@@ -1,14 +1,14 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 // Common action result type
-export interface ActionResult<T = any> {
+export interface ActionResult<T = unknown> {
   success: boolean;
   data?: T;
   errors?: {
     root?: {
       _errors: string[];
     };
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -23,9 +23,7 @@ export type VoteFormValues = z.infer<typeof voteSchema>;
 // Poll-related types
 export interface Poll {
   id: string;
-  title: string;
-  description?: string;
-  allow_multiple_votes: boolean;
+  question: string;
   created_at: string;
   updated_at: string;
   user_id: string;
@@ -35,11 +33,12 @@ export interface Poll {
 export interface PollOption {
   id: string;
   poll_id: string;
-  option_text: string;
+  text: string;
+  votes: number;
   created_at: string;
 }
 
-export interface PollVote {
+export interface Vote {
   id: string;
   poll_id: string;
   option_id: string;

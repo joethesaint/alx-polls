@@ -1,13 +1,13 @@
-import { ActionResult } from './types';
+import { ActionResult } from "./types";
 
 /**
  * Create a standardized error response
  */
-export function createErrorResponse(message: string | string[]): ActionResult {
+export function createErrorResponse<T = any>(message: string | string[]): ActionResult<T> {
   const messages = Array.isArray(message) ? message : [message];
   return {
     success: false,
-    errors: { root: { _errors: messages } }
+    errors: { root: { _errors: messages } },
   };
 }
 
@@ -17,22 +17,22 @@ export function createErrorResponse(message: string | string[]): ActionResult {
 export function createSuccessResponse<T>(data?: T): ActionResult<T> {
   return {
     success: true,
-    ...(data !== undefined && { data })
+    ...(data !== undefined && { data }),
   };
 }
 
 /**
  * Handle and log errors consistently
  */
-export function handleError(error: unknown, context: string): ActionResult {
+export function handleError<T = any>(error: unknown, context: string): ActionResult<T> {
   console.error(`Error in ${context}:`, error);
-  
+
   // Check if it's a known error type
   if (error instanceof Error) {
-    return createErrorResponse(`${context} failed: ${error.message}`);
+    return createErrorResponse<T>(`${context} failed: ${error.message}`);
   }
-  
-  return createErrorResponse('An unexpected error occurred. Please try again.');
+
+  return createErrorResponse<T>("An unexpected error occurred. Please try again.");
 }
 
 /**
@@ -41,7 +41,7 @@ export function handleError(error: unknown, context: string): ActionResult {
 export function createValidationErrorResponse(errors: any): ActionResult {
   return {
     success: false,
-    errors
+    errors,
   };
 }
 
@@ -55,7 +55,9 @@ export function createDatabaseErrorResponse(operation: string): ActionResult {
 /**
  * Authentication error response
  */
-export function createAuthErrorResponse(message = 'Authentication required'): ActionResult {
+export function createAuthErrorResponse(
+  message = "Authentication required",
+): ActionResult {
   return createErrorResponse(message);
 }
 

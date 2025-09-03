@@ -1,10 +1,15 @@
-import { createPoll, deletePoll, updatePoll, type PollFormValues } from '../../lib/actions';
-import { supabase } from '../../lib/supabase';
-import { revalidatePath } from 'next/cache';
-import { isDevMode } from '../../lib/dev-auth';
+import {
+  createPoll,
+  deletePoll,
+  updatePoll,
+  type PollFormValues,
+} from "../../lib/actions";
+import { supabase } from "../../lib/supabase";
+import { revalidatePath } from "next/cache";
+import { isDevMode } from "../../lib/dev-auth";
 
 // Mock dependencies
-jest.mock('../../lib/supabase', () => ({
+jest.mock("../../lib/supabase", () => ({
   supabase: {
     auth: {
       getSession: jest.fn(),
@@ -30,40 +35,36 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
-jest.mock('next/cache');
-jest.mock('../../lib/dev-auth');
+jest.mock("next/cache");
+jest.mock("../../lib/dev-auth");
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
-const mockRevalidatePath = revalidatePath as jest.MockedFunction<typeof revalidatePath>;
+const mockRevalidatePath = revalidatePath as jest.MockedFunction<
+  typeof revalidatePath
+>;
 const mockIsDevMode = isDevMode as jest.MockedFunction<typeof isDevMode>;
 
-describe('Poll Actions', () => {
+describe("Poll Actions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Mock console.error to prevent it from appearing in test output
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  describe('createPoll', () => {
+  describe("createPoll", () => {
     const validPollData: PollFormValues = {
-      title: 'Test Poll Title',
-      description: 'This is a test poll description that is long enough',
-      isPublic: true,
-      allowMultipleVotes: false,
-      options: [
-        { text: 'Option 1' },
-        { text: 'Option 2' },
-      ],
+      question: "What is your favorite programming language?",
+      options: [{ text: "Option 1" }, { text: "Option 2" }],
     };
 
-    it('should create a poll successfully with authenticated user', async () => {
+    it("should create a poll successfully with authenticated user", async () => {
       // Mock authenticated session
       const mockSession = {
-        user: { id: 'user-123' },
+        user: { id: "user-123" },
       };
       (mockSupabase.auth.getSession as jest.Mock).mockResolvedValue({
         data: { session: mockSession },
@@ -72,7 +73,7 @@ describe('Poll Actions', () => {
       mockIsDevMode.mockReturnValue(false);
 
       // Mock successful poll creation
-      const mockPoll = { id: 'poll-123', ...validPollData };
+      const mockPoll = { id: "poll-123", ...validPollData };
       const mockInsert = jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
           single: jest.fn().mockResolvedValue({ data: mockPoll, error: null }),
@@ -84,12 +85,12 @@ describe('Poll Actions', () => {
 
       expect(result).toEqual({
         success: true,
-        pollId: 'poll-123',
+        pollId: "poll-123",
       });
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/dashboard');
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard");
     });
 
-    it('should create a poll in dev mode without authentication', async () => {
+    it("should create a poll in dev mode without authentication", async () => {
       // Mock no session but dev mode enabled
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: null },
@@ -98,7 +99,7 @@ describe('Poll Actions', () => {
       mockIsDevMode.mockReturnValue(true);
 
       // Mock successful poll creation
-      const mockPoll = { id: 'poll-123', ...validPollData };
+      const mockPoll = { id: "poll-123", ...validPollData };
       const mockInsert = jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
           single: jest.fn().mockResolvedValue({ data: mockPoll, error: null }),
@@ -110,11 +111,11 @@ describe('Poll Actions', () => {
 
       expect(result).toEqual({
         success: true,
-        pollId: 'poll-123',
+        pollId: "poll-123",
       });
     });
 
-    it('should fail when user is not authenticated and not in dev mode', async () => {
+    it("should fail when user is not authenticated and not in dev mode", async () => {
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: null },
         error: null,
@@ -125,17 +126,16 @@ describe('Poll Actions', () => {
 
       expect(result).toEqual({
         success: false,
-        errors: { root: { _errors: ['You must be logged in to create a poll'] } },
+        errors: {
+          root: { _errors: ["You must be logged in to create a poll"] },
+        },
       });
     });
 
-    it('should fail with validation errors for invalid data', async () => {
+    it("should fail with validation errors for invalid data", async () => {
       const invalidPollData = {
-        title: 'Hi', // Too short
-        description: 'Short', // Too short
-        isPublic: true,
-        allowMultipleVotes: false,
-        options: [{ text: 'Only one option' }], // Not enough options
+        question: "Hi", // Too short
+        options: [{ text: "Only one option" }], // Not enough options
       };
 
       const result = await createPoll(invalidPollData as PollFormValues);
@@ -144,9 +144,9 @@ describe('Poll Actions', () => {
       expect(result.errors).toBeDefined();
     });
 
-    it('should fail when database insert fails', async () => {
+    it("should fail when database insert fails", async () => {
       const mockSession = {
-        user: { id: 'user-123' },
+        user: { id: "user-123" },
       };
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: mockSession },
@@ -157,7 +157,10 @@ describe('Poll Actions', () => {
       // Mock database error
       const mockInsert = jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({ data: null, error: { message: 'Database error' } }),
+          single: jest.fn().mockResolvedValue({
+            data: null,
+            error: { message: "Database error" },
+          }),
         }),
       });
       mockSupabase.from.mockReturnValue({ insert: mockInsert } as any);
@@ -166,16 +169,18 @@ describe('Poll Actions', () => {
 
       expect(result).toEqual({
         success: false,
-        errors: { root: { _errors: ['Failed to create poll. Please try again.'] } },
+        errors: {
+          root: { _errors: ["Failed to create poll. Please try again."] },
+        },
       });
     });
 
-    it('should handle duplicate options validation', async () => {
+    it("should handle duplicate options validation", async () => {
       const duplicateOptionsData = {
         ...validPollData,
         options: [
-          { text: 'Same Option' },
-          { text: 'Same Option' }, // Duplicate
+          { text: "Same Option" },
+          { text: "Same Option" }, // Duplicate
         ],
       };
 
@@ -185,20 +190,22 @@ describe('Poll Actions', () => {
       expect(result.errors).toBeDefined();
     });
 
-    it('should handle maximum number of options', async () => {
+    it("should handle maximum number of options", async () => {
       const maxOptionsData = {
         ...validPollData,
-        options: Array.from({ length: 10 }, (_, i) => ({ text: `Option ${i + 1}` })),
+        options: Array.from({ length: 10 }, (_, i) => ({
+          text: `Option ${i + 1}`,
+        })),
       };
 
-      const mockSession = { user: { id: 'user-123' } };
+      const mockSession = { user: { id: "user-123" } };
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: mockSession },
         error: null,
       });
       mockIsDevMode.mockReturnValue(false);
 
-      const mockPoll = { id: 'poll-123', ...maxOptionsData };
+      const mockPoll = { id: "poll-123", ...maxOptionsData };
       const mockInsert = jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
           single: jest.fn().mockResolvedValue({ data: mockPoll, error: null }),
@@ -209,13 +216,15 @@ describe('Poll Actions', () => {
       const result = await createPoll(maxOptionsData);
 
       expect(result.success).toBe(true);
-      expect(result.pollId).toBe('poll-123');
+      expect(result.pollId).toBe("poll-123");
     });
 
-    it('should fail when exceeding maximum options limit', async () => {
+    it("should fail when exceeding maximum options limit", async () => {
       const tooManyOptionsData = {
         ...validPollData,
-        options: Array.from({ length: 11 }, (_, i) => ({ text: `Option ${i + 1}` })),
+        options: Array.from({ length: 11 }, (_, i) => ({
+          text: `Option ${i + 1}`,
+        })),
       };
 
       const result = await createPoll(tooManyOptionsData as PollFormValues);
@@ -224,12 +233,12 @@ describe('Poll Actions', () => {
       expect(result.errors).toBeDefined();
     });
 
-    it('should handle empty option text validation', async () => {
+    it("should handle empty option text validation", async () => {
       const emptyOptionData = {
         ...validPollData,
         options: [
-          { text: 'Valid Option' },
-          { text: '' }, // Empty option
+          { text: "Valid Option" },
+          { text: "" }, // Empty option
         ],
       };
 
@@ -239,86 +248,32 @@ describe('Poll Actions', () => {
       expect(result.errors).toBeDefined();
     });
 
-    it('should handle very long poll title', async () => {
-      const longTitleData = {
+    it("should handle very long poll question", async () => {
+      const longQuestionData = {
         ...validPollData,
-        title: 'A'.repeat(201), // Exceeds 200 character limit
+        question: "A".repeat(501), // Exceeds 500 character limit
       };
 
-      const result = await createPoll(longTitleData as PollFormValues);
+      const result = await createPoll(longQuestionData as PollFormValues);
 
       expect(result.success).toBe(false);
       expect(result.errors).toBeDefined();
     });
 
-    it('should handle very long poll description', async () => {
-      const longDescriptionData = {
+    it("should handle empty poll question", async () => {
+      const emptyQuestionData = {
         ...validPollData,
-        description: 'A'.repeat(1001), // Exceeds 1000 character limit
+        question: "", // Empty question
       };
 
-      const result = await createPoll(longDescriptionData as PollFormValues);
+      const result = await createPoll(emptyQuestionData as PollFormValues);
 
       expect(result.success).toBe(false);
       expect(result.errors).toBeDefined();
     });
 
-    it('should create private poll successfully', async () => {
-      const privatePollData = {
-        ...validPollData,
-        isPublic: false,
-      };
-
-      const mockSession = { user: { id: 'user-123' } };
-      mockSupabase.auth.getSession.mockResolvedValue({
-        data: { session: mockSession },
-        error: null,
-      });
-      mockIsDevMode.mockReturnValue(false);
-
-      const mockPoll = { id: 'poll-123', ...privatePollData };
-      const mockInsert = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({ data: mockPoll, error: null }),
-        }),
-      });
-      mockSupabase.from.mockReturnValue({ insert: mockInsert } as any);
-
-      const result = await createPoll(privatePollData);
-
-      expect(result.success).toBe(true);
-      expect(result.pollId).toBe('poll-123');
-    });
-
-    it('should create poll with multiple votes allowed', async () => {
-      const multipleVotesPollData = {
-        ...validPollData,
-        allowMultipleVotes: true,
-      };
-
-      const mockSession = { user: { id: 'user-123' } };
-      mockSupabase.auth.getSession.mockResolvedValue({
-        data: { session: mockSession },
-        error: null,
-      });
-      mockIsDevMode.mockReturnValue(false);
-
-      const mockPoll = { id: 'poll-123', ...multipleVotesPollData };
-      const mockInsert = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({ data: mockPoll, error: null }),
-        }),
-      });
-      mockSupabase.from.mockReturnValue({ insert: mockInsert } as any);
-
-      const result = await createPoll(multipleVotesPollData);
-
-      expect(result.success).toBe(true);
-      expect(result.pollId).toBe('poll-123');
-    });
-
-    it('should handle network timeout during poll creation', async () => {
-      const mockSession = { user: { id: 'user-123' } };
+    it("should handle network timeout during poll creation", async () => {
+      const mockSession = { user: { id: "user-123" } };
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: mockSession },
         error: null,
@@ -328,7 +283,7 @@ describe('Poll Actions', () => {
       // Mock network timeout
       const mockInsert = jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
-          single: jest.fn().mockRejectedValue(new Error('Network timeout')),
+          single: jest.fn().mockRejectedValue(new Error("Network timeout")),
         }),
       });
       mockSupabase.from.mockReturnValue({ insert: mockInsert } as any);
@@ -337,14 +292,14 @@ describe('Poll Actions', () => {
 
       expect(result.success).toBe(false);
       expect(result.errors).toEqual({
-        root: { _errors: ['An unexpected error occurred. Please try again.'] },
+        root: { _errors: ["An unexpected error occurred. Please try again."] },
       });
     });
 
-    it('should handle session retrieval error', async () => {
+    it("should handle session retrieval error", async () => {
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: null },
-        error: { message: 'Session error' },
+        error: { message: "Session error" },
       });
       mockIsDevMode.mockReturnValue(false);
 
@@ -352,28 +307,25 @@ describe('Poll Actions', () => {
 
       expect(result.success).toBe(false);
       expect(result.errors).toEqual({
-        root: { _errors: ['You must be logged in to create a poll'] },
+        root: { _errors: ["You must be logged in to create a poll"] },
       });
     });
 
-    it('should trim whitespace from poll title and options', async () => {
+    it("should trim whitespace from poll question and options", async () => {
       const whitespaceData = {
         ...validPollData,
-        title: '  Test Poll Title  ',
-        options: [
-          { text: '  Option 1  ' },
-          { text: '  Option 2  ' },
-        ],
+        question: "  Test Poll Question  ",
+        options: [{ text: "  Option 1  " }, { text: "  Option 2  " }],
       };
 
-      const mockSession = { user: { id: 'user-123' } };
+      const mockSession = { user: { id: "user-123" } };
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: mockSession },
         error: null,
       });
       mockIsDevMode.mockReturnValue(false);
 
-      const mockPoll = { id: 'poll-123', ...validPollData };
+      const mockPoll = { id: "poll-123", ...validPollData };
       const mockInsert = jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
           single: jest.fn().mockResolvedValue({ data: mockPoll, error: null }),
@@ -385,17 +337,19 @@ describe('Poll Actions', () => {
 
       expect(result.success).toBe(true);
       // Verify that the insert was called with trimmed data
-      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'Test Poll Title',
-      }));
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          question: "Test Poll Question",
+        }),
+      );
     });
   });
 
-  describe('deletePoll', () => {
-    const mockPollId = 'poll-123';
-    const mockUserId = 'user-123';
+  describe("deletePoll", () => {
+    const mockPollId = "poll-123";
+    const mockUserId = "user-123";
 
-    it('should delete a poll successfully', async () => {
+    it("should delete a poll successfully", async () => {
       // Mock authenticated session
       const mockSession = { user: { id: mockUserId } };
       mockSupabase.auth.getSession.mockResolvedValue({
@@ -419,7 +373,7 @@ describe('Poll Actions', () => {
       });
 
       mockSupabase.from.mockImplementation((table) => {
-        if (table === 'polls') {
+        if (table === "polls") {
           return { select: mockSelect, delete: mockDelete } as any;
         }
         return { delete: mockDelete } as any;
@@ -428,10 +382,10 @@ describe('Poll Actions', () => {
       const result = await deletePoll(mockPollId);
 
       expect(result).toEqual({ success: true });
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/dashboard');
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard");
     });
 
-    it('should fail when user is not authenticated', async () => {
+    it("should fail when user is not authenticated", async () => {
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: null },
         error: null,
@@ -441,11 +395,11 @@ describe('Poll Actions', () => {
 
       expect(result).toEqual({
         success: false,
-        error: 'You must be logged in to delete a poll',
+        error: "You must be logged in to delete a poll",
       });
     });
 
-    it('should fail when poll is not found', async () => {
+    it("should fail when poll is not found", async () => {
       const mockSession = { user: { id: mockUserId } };
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: mockSession },
@@ -456,7 +410,7 @@ describe('Poll Actions', () => {
         eq: jest.fn().mockReturnValue({
           single: jest.fn().mockResolvedValue({
             data: null,
-            error: { message: 'Not found' },
+            error: { message: "Not found" },
           }),
         }),
       });
@@ -467,11 +421,11 @@ describe('Poll Actions', () => {
 
       expect(result).toEqual({
         success: false,
-        error: 'Poll not found',
+        error: "Poll not found",
       });
     });
 
-    it('should fail when user tries to delete someone else\'s poll', async () => {
+    it(`should fail when user tries to delete someone else's poll`, async () => {
       const mockSession = { user: { id: mockUserId } };
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: mockSession },
@@ -481,7 +435,7 @@ describe('Poll Actions', () => {
       const mockSelect = jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
           single: jest.fn().mockResolvedValue({
-            data: { user_id: 'different-user-id' },
+            data: { user_id: "different-user-id" },
             error: null,
           }),
         }),
@@ -493,27 +447,24 @@ describe('Poll Actions', () => {
 
       expect(result).toEqual({
         success: false,
-        error: 'You can only delete your own polls',
+        error: "You can only delete your own polls",
       });
     });
   });
 
-  describe('updatePoll', () => {
-    const mockPollId = 'poll-123';
-    const mockUserId = 'user-123';
+  describe("updatePoll", () => {
+    const mockPollId = "poll-123";
+    const mockUserId = "user-123";
     const validUpdateData: PollFormValues = {
-      title: 'Updated Poll Title',
-      description: 'This is an updated poll description that is long enough',
-      isPublic: false,
-      allowMultipleVotes: true,
+      question: "Updated Poll Question",
       options: [
-        { text: 'Updated Option 1' },
-        { text: 'Updated Option 2' },
-        { text: 'New Option 3' },
+        { text: "Updated Option 1" },
+        { text: "Updated Option 2" },
+        { text: "New Option 3" },
       ],
     };
 
-    it('should update a poll successfully', async () => {
+    it("should update a poll successfully", async () => {
       // Mock authenticated session
       const mockSession = { user: { id: mockUserId } };
       mockSupabase.auth.getSession.mockResolvedValue({
@@ -526,7 +477,7 @@ describe('Poll Actions', () => {
         eq: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({
-              data: { user_id: mockUserId, title: 'Original Title' },
+              data: { user_id: mockUserId, question: "Original Question" },
               error: null,
             }),
           }),
@@ -535,7 +486,7 @@ describe('Poll Actions', () => {
 
       // Mock RPC call failure (function doesn't exist) to trigger fallback
       const mockRpc = jest.fn().mockResolvedValue({
-        error: { code: '42883', message: 'Function does not exist' },
+        error: { code: "42883", message: "Function does not exist" },
       });
 
       // Mock successful fallback operations
@@ -548,7 +499,7 @@ describe('Poll Actions', () => {
       const mockInsert = jest.fn().mockResolvedValue({ error: null });
 
       mockSupabase.from.mockImplementation((table) => {
-        if (table === 'polls') {
+        if (table === "polls") {
           return { select: mockSelect, update: mockUpdate } as any;
         }
         return { delete: mockDelete, insert: mockInsert } as any;
@@ -561,26 +512,26 @@ describe('Poll Actions', () => {
         success: true,
         pollId: mockPollId,
       });
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/dashboard');
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard");
       expect(mockRevalidatePath).toHaveBeenCalledWith(`/polls/${mockPollId}`);
     });
 
-    it('should fail with validation errors', async () => {
+    it("should fail with validation errors", async () => {
       const invalidUpdateData = {
-        title: 'Hi', // Too short
-        description: 'Short', // Too short
-        isPublic: true,
-        allowMultipleVotes: false,
-        options: [{ text: 'Only one option' }], // Not enough options
+        question: "Hi", // Too short
+        options: [{ text: "Only one option" }], // Not enough options
       };
 
-      const result = await updatePoll(mockPollId, invalidUpdateData as PollFormValues);
+      const result = await updatePoll(
+        mockPollId,
+        invalidUpdateData as PollFormValues,
+      );
 
       expect(result.success).toBe(false);
       expect(result.errors).toBeDefined();
     });
 
-    it('should fail when user is not authenticated', async () => {
+    it("should fail when user is not authenticated", async () => {
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: null },
         error: null,
@@ -590,11 +541,13 @@ describe('Poll Actions', () => {
 
       expect(result).toEqual({
         success: false,
-        errors: { root: { _errors: ['You must be logged in to update a poll'] } },
+        errors: {
+          root: { _errors: ["You must be logged in to update a poll"] },
+        },
       });
     });
 
-    it('should fail when poll is not found', async () => {
+    it("should fail when poll is not found", async () => {
       const mockSession = { user: { id: mockUserId } };
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: mockSession },
@@ -606,7 +559,7 @@ describe('Poll Actions', () => {
           eq: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({
               data: null,
-              error: { code: 'PGRST116', message: 'Not found' },
+              error: { code: "PGRST116", message: "Not found" },
             }),
           }),
         }),
@@ -618,11 +571,17 @@ describe('Poll Actions', () => {
 
       expect(result).toEqual({
         success: false,
-        errors: { root: { _errors: ['Poll not found or you do not have permission to edit it'] } },
+        errors: {
+          root: {
+            _errors: [
+              "Poll not found or you do not have permission to edit it",
+            ],
+          },
+        },
       });
     });
 
-    it('should fail when user tries to update someone else\'s poll', async () => {
+    it(`should fail when user tries to update someone else's poll`, async () => {
       const mockSession = { user: { id: mockUserId } };
       mockSupabase.auth.getSession.mockResolvedValue({
         data: { session: mockSession },
@@ -635,7 +594,7 @@ describe('Poll Actions', () => {
           eq: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({
               data: null, // No data returned because user doesn't own the poll
-              error: { code: 'PGRST116', message: 'Not found' },
+              error: { code: "PGRST116", message: "Not found" },
             }),
           }),
         }),
@@ -647,7 +606,13 @@ describe('Poll Actions', () => {
 
       expect(result).toEqual({
         success: false,
-        errors: { root: { _errors: ['Poll not found or you do not have permission to edit it'] } },
+        errors: {
+          root: {
+            _errors: [
+              "Poll not found or you do not have permission to edit it",
+            ],
+          },
+        },
       });
     });
   });

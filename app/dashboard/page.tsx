@@ -1,26 +1,24 @@
-import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { isDevMode } from '../../lib/dev-auth';
-import { supabase } from '../../lib/supabase';
+import type { SupabaseClient } from "@supabase/supabase-js";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { isDevMode } from "../../lib/dev-auth";
+import { supabase } from "../../lib/supabase";
 
 interface Poll {
   id: string;
-  title: string;
-  description: string;
+  question: string;
   created_at: string;
-  is_public: boolean;
-  allow_multiple_votes: boolean;
 }
 
-async function getPolls(supabase: any, userId: string) {
+async function getPolls(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase
-    .from('polls')
-    .select('id, title, description, created_at, is_public, allow_multiple_votes')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .from("polls")
+    .select("id, question, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error('Error fetching polls:', error);
+    console.error("Error fetching polls:", error);
     return [];
   }
   return data;
@@ -28,19 +26,19 @@ async function getPolls(supabase: any, userId: string) {
 
 export default async function DashboardPage() {
   let session = null;
-  
+
   // Only check session if not in dev mode
   if (!isDevMode()) {
     const { data } = await supabase.auth.getSession();
     session = data.session;
-    
+
     if (!session) {
-      redirect('/auth/login');
+      redirect("/auth/login");
     }
   }
 
   // For dev mode, we'll use a placeholder user ID
-  const userId = session?.user?.id || '00000000-0000-0000-0000-000000000001';
+  const userId = session?.user?.id || "00000000-0000-0000-0000-000000000001";
   const polls = await getPolls(supabase, userId);
 
   return (
@@ -50,7 +48,9 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-bold">Polls Dashboard</h1>
           <p className="text-muted-foreground">Create and manage your polls.</p>
           {isDevMode() && !session && (
-            <p className="text-sm text-yellow-600 mt-1">🟡 Development Mode - Using dev user session</p>
+            <p className="text-sm text-yellow-600 mt-1">
+              🟡 Development Mode - Using dev user session
+            </p>
           )}
         </div>
         <div className="flex items-center space-x-4">
@@ -58,8 +58,8 @@ export default async function DashboardPage() {
             Create Poll
           </Link>
           {isDevMode() && !session && (
-            <Link 
-              href="/auth/logout" 
+            <Link
+              href="/auth/logout"
               className="text-sm text-gray-500 hover:text-gray-700"
             >
               Logout (Dev)
@@ -93,34 +93,15 @@ function PollCard({ poll }: { poll: Poll }) {
   return (
     <div className="bg-white border border-gray-200 shadow-sm rounded-lg">
       <div className="p-6">
-        <h3 className="font-semibold text-lg mb-2">{poll.title}</h3>
-        <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
-          {poll.description}
-        </p>
-        <div className="mb-3">
-          {poll.allow_multiple_votes && (
-            <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-              Multiple votes allowed
-            </span>
-          )}
-        </div>
+        <h3 className="font-semibold text-lg mb-4">{poll.question}</h3>
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
           <span>{new Date(poll.created_at).toLocaleDateString()}</span>
-          <span className={poll.is_public ? 'text-green-600' : 'text-orange-600'}>
-            {poll.is_public ? 'Public' : 'Private'}
-          </span>
         </div>
         <div className="flex space-x-2">
-          <Link
-            href={`/polls/${poll.id}`}
-            className="btn btn-secondary flex-1"
-          >
+          <Link href={`/polls/${poll.id}`} className="btn btn-secondary flex-1">
             View
           </Link>
-          <Link
-            href={`/polls/${poll.id}/share`}
-            className="btn btn-ghost"
-          >
+          <Link href={`/polls/${poll.id}/share`} className="btn btn-ghost">
             Share
           </Link>
         </div>
