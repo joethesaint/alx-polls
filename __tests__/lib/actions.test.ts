@@ -184,6 +184,211 @@ describe('Poll Actions', () => {
       expect(result.success).toBe(false);
       expect(result.errors).toBeDefined();
     });
+
+    it('should handle maximum number of options', async () => {
+      const maxOptionsData = {
+        ...validPollData,
+        options: Array.from({ length: 10 }, (_, i) => ({ text: `Option ${i + 1}` })),
+      };
+
+      const mockSession = { user: { id: 'user-123' } };
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: mockSession },
+        error: null,
+      });
+      mockIsDevMode.mockReturnValue(false);
+
+      const mockPoll = { id: 'poll-123', ...maxOptionsData };
+      const mockInsert = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          single: jest.fn().mockResolvedValue({ data: mockPoll, error: null }),
+        }),
+      });
+      mockSupabase.from.mockReturnValue({ insert: mockInsert } as any);
+
+      const result = await createPoll(maxOptionsData);
+
+      expect(result.success).toBe(true);
+      expect(result.pollId).toBe('poll-123');
+    });
+
+    it('should fail when exceeding maximum options limit', async () => {
+      const tooManyOptionsData = {
+        ...validPollData,
+        options: Array.from({ length: 11 }, (_, i) => ({ text: `Option ${i + 1}` })),
+      };
+
+      const result = await createPoll(tooManyOptionsData as PollFormValues);
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toBeDefined();
+    });
+
+    it('should handle empty option text validation', async () => {
+      const emptyOptionData = {
+        ...validPollData,
+        options: [
+          { text: 'Valid Option' },
+          { text: '' }, // Empty option
+        ],
+      };
+
+      const result = await createPoll(emptyOptionData as PollFormValues);
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toBeDefined();
+    });
+
+    it('should handle very long poll title', async () => {
+      const longTitleData = {
+        ...validPollData,
+        title: 'A'.repeat(201), // Exceeds 200 character limit
+      };
+
+      const result = await createPoll(longTitleData as PollFormValues);
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toBeDefined();
+    });
+
+    it('should handle very long poll description', async () => {
+      const longDescriptionData = {
+        ...validPollData,
+        description: 'A'.repeat(1001), // Exceeds 1000 character limit
+      };
+
+      const result = await createPoll(longDescriptionData as PollFormValues);
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toBeDefined();
+    });
+
+    it('should create private poll successfully', async () => {
+      const privatePollData = {
+        ...validPollData,
+        isPublic: false,
+      };
+
+      const mockSession = { user: { id: 'user-123' } };
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: mockSession },
+        error: null,
+      });
+      mockIsDevMode.mockReturnValue(false);
+
+      const mockPoll = { id: 'poll-123', ...privatePollData };
+      const mockInsert = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          single: jest.fn().mockResolvedValue({ data: mockPoll, error: null }),
+        }),
+      });
+      mockSupabase.from.mockReturnValue({ insert: mockInsert } as any);
+
+      const result = await createPoll(privatePollData);
+
+      expect(result.success).toBe(true);
+      expect(result.pollId).toBe('poll-123');
+    });
+
+    it('should create poll with multiple votes allowed', async () => {
+      const multipleVotesPollData = {
+        ...validPollData,
+        allowMultipleVotes: true,
+      };
+
+      const mockSession = { user: { id: 'user-123' } };
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: mockSession },
+        error: null,
+      });
+      mockIsDevMode.mockReturnValue(false);
+
+      const mockPoll = { id: 'poll-123', ...multipleVotesPollData };
+      const mockInsert = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          single: jest.fn().mockResolvedValue({ data: mockPoll, error: null }),
+        }),
+      });
+      mockSupabase.from.mockReturnValue({ insert: mockInsert } as any);
+
+      const result = await createPoll(multipleVotesPollData);
+
+      expect(result.success).toBe(true);
+      expect(result.pollId).toBe('poll-123');
+    });
+
+    it('should handle network timeout during poll creation', async () => {
+      const mockSession = { user: { id: 'user-123' } };
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: mockSession },
+        error: null,
+      });
+      mockIsDevMode.mockReturnValue(false);
+
+      // Mock network timeout
+      const mockInsert = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          single: jest.fn().mockRejectedValue(new Error('Network timeout')),
+        }),
+      });
+      mockSupabase.from.mockReturnValue({ insert: mockInsert } as any);
+
+      const result = await createPoll(validPollData);
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toEqual({
+        root: { _errors: ['An unexpected error occurred. Please try again.'] },
+      });
+    });
+
+    it('should handle session retrieval error', async () => {
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: null },
+        error: { message: 'Session error' },
+      });
+      mockIsDevMode.mockReturnValue(false);
+
+      const result = await createPoll(validPollData);
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toEqual({
+        root: { _errors: ['You must be logged in to create a poll'] },
+      });
+    });
+
+    it('should trim whitespace from poll title and options', async () => {
+      const whitespaceData = {
+        ...validPollData,
+        title: '  Test Poll Title  ',
+        options: [
+          { text: '  Option 1  ' },
+          { text: '  Option 2  ' },
+        ],
+      };
+
+      const mockSession = { user: { id: 'user-123' } };
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: mockSession },
+        error: null,
+      });
+      mockIsDevMode.mockReturnValue(false);
+
+      const mockPoll = { id: 'poll-123', ...validPollData };
+      const mockInsert = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          single: jest.fn().mockResolvedValue({ data: mockPoll, error: null }),
+        }),
+      });
+      mockSupabase.from.mockReturnValue({ insert: mockInsert } as any);
+
+      const result = await createPoll(whitespaceData);
+
+      expect(result.success).toBe(true);
+      // Verify that the insert was called with trimmed data
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Test Poll Title',
+      }));
+    });
   });
 
   describe('deletePoll', () => {

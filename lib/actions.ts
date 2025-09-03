@@ -25,6 +25,7 @@ const pollSchema = z.object({
     })
   )
     .min(2, { message: 'At least 2 options are required' })
+    .max(10, { message: 'Maximum 10 options are allowed' })
     .refine(
       options => new Set(options.map(o => o.text.trim())).size === options.length,
       { message: 'All options must be unique' }
@@ -72,8 +73,8 @@ export async function createPoll(formData: PollFormValues) {
     const { data: poll, error: pollError } = await supabase
       .from('polls')
       .insert({
-        title: formData.title,
-        description: formData.description,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
         is_public: formData.isPublic,
         allow_multiple_votes: formData.allowMultipleVotes,
         user_id: userId
