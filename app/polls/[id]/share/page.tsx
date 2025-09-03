@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PollQRCode from '../../../../components/PollQRCode';
-import { getPollResults } from '../../../../lib/vote-actions';
 
-export default function SharePollPage({ params }: { params: { id: string } }) {
+export default function SharePollPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const [pollTitle, setPollTitle] = useState('');
+  const [pollId, setPollId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,10 +16,13 @@ export default function SharePollPage({ params }: { params: { id: string } }) {
     const fetchPollDetails = async () => {
       try {
         setLoading(true);
-        const result = await getPollResults(params.id);
+        const resolvedParams = await params;
+        const response = await fetch(`/api/polls/${resolvedParams.id}`);
         
-        if (result.success && result.poll) {
-          setPollTitle(result.poll.title);
+        if (response.ok) {
+          const pollData = await response.json();
+          setPollTitle(pollData.title);
+          setPollId(pollData.id);
         } else {
           setError('Failed to load poll details');
         }
@@ -32,7 +35,7 @@ export default function SharePollPage({ params }: { params: { id: string } }) {
     };
 
     fetchPollDetails();
-  }, [params.id]);
+  }, [params]);
 
   if (loading) {
     return (
@@ -67,12 +70,12 @@ export default function SharePollPage({ params }: { params: { id: string } }) {
           <h1 className="text-2xl font-bold text-center mb-6">{pollTitle}</h1>
           
           <div className="mb-8">
-            <PollQRCode pollId={params.id} size={200} />
+            <PollQRCode pollId={pollId} size={200} />
           </div>
           
           <div className="flex space-x-4">
             <Link 
-              href={`/polls/${params.id}`}
+              href={`/polls/${pollId}`}
               className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
             >
               View Poll

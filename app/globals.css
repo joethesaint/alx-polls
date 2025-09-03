@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
 :root {
   --font-sans: var(--font-geist-sans);
@@ -19,11 +18,11 @@
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-gray-200;
     box-sizing: border-box;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-gray-50 text-gray-900;
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -31,7 +30,7 @@
   
   /* Simplified form elements */
   input, textarea, select {
-    @apply px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary;
+    @apply px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500;
   }
   
   button {
@@ -40,12 +39,12 @@
   
   /* Primary button */
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary-hover;
+    @apply bg-blue-500 text-white hover:bg-blue-600;
   }
   
   /* Secondary button */
   .btn-secondary {
-    @apply bg-muted text-foreground hover:bg-border;
+    @apply bg-gray-100 text-gray-900 hover:bg-gray-200;
   }
   
   /* Container */
@@ -55,6 +54,6 @@
   
   /* Card */
   .card {
-    @apply bg-white p-6 rounded-md border border-border shadow-sm;
+    @apply bg-white p-6 rounded-md border border-gray-200 shadow-sm;
   }
 }

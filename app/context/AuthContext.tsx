@@ -7,9 +7,10 @@ import { Session, User } from '@supabase/supabase-js';
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, session: null });
+const AuthContext = createContext<AuthContextType>({ user: null, session: null, signOut: async () => {} });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -34,8 +35,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session }}>
+    <AuthContext.Provider value={{ user, session, signOut }}>
       {children}
     </AuthContext.Provider>
   );
