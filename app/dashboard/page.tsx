@@ -6,9 +6,7 @@ import { supabase } from '../../lib/supabase';
 interface Poll {
   id: string;
   title: string;
-  question: string;
   description: string;
-  options: string[];
   created_at: string;
   is_public: boolean;
   allow_multiple_votes: boolean;
@@ -17,7 +15,7 @@ interface Poll {
 async function getPolls(supabase: any, userId: string) {
   const { data, error } = await supabase
     .from('polls')
-    .select('id, title, question, description, options, created_at, is_public, allow_multiple_votes')
+    .select('id, title, description, created_at, is_public, allow_multiple_votes')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
@@ -96,16 +94,10 @@ function PollCard({ poll }: { poll: Poll }) {
     <div className="bg-white border border-gray-200 shadow-sm rounded-lg">
       <div className="p-6">
         <h3 className="font-semibold text-lg mb-2">{poll.title}</h3>
-        <p className="text-muted-foreground text-sm mb-2 font-medium">
-          {poll.question}
-        </p>
         <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
           {poll.description}
         </p>
         <div className="mb-3">
-          <span className="text-xs text-muted-foreground">
-            {poll.options.length} options
-          </span>
           {poll.allow_multiple_votes && (
             <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
               Multiple votes allowed
